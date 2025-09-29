@@ -370,6 +370,8 @@
             <button class="btn" onclick="startNewDay()">🌅 Start New Day</button>
             <button class="btn" onclick="showLeaderboard()">🏆 View Leaderboard</button>
             <button class="btn" onclick="openAvatarModal()">🎭 Choose Avatar</button>
+            <button class="btn" onclick="openReleaseModal()">🔓 Release Desk</button>
+            <button class="btn" onclick="downloadBookingData()">💾 Download Data</button>
             <button class="btn" onclick="resetGame()">🔄 Reset Game</button>
         </div>
 
@@ -435,6 +437,19 @@
         </div>
     </div>
 
+    <!-- Release Desk Modal -->
+    <div id="releaseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeReleaseModal()">&times;</span>
+            <h2>🔓 Release a Desk</h2>
+            <p>Select a booked desk to release:</p>
+            <div class="avatar-selection" id="releaseSelection">
+                <!-- Release options will be generated here -->
+            </div>
+            <button class="btn" onclick="confirmRelease()">Release Selected Desk</button>
+        </div>
+    </div>
+
     <!-- Sound Effects -->
     <div class="sound-effects">
         <audio id="successSound" preload="auto">
@@ -455,6 +470,7 @@
             questions: [],
             currentQuestion: null,
             weeklyChampions: [],
+            bookingHistory: [],
             avatars: [
                 "🐴 Sir Gallops-a-Lot",
                 "🦄 Desk-a-saurus Rex", 
@@ -725,6 +741,34 @@
                     desk.bookedBy = player.name;
                     desk.bookedDay = gameState.currentDay;
                     
+                    // Store booking details in JSON format
+                    const bookingDetails = {
+                        id: `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        username: player.name,
+                        avatar: player.avatar,
+                        date: new Date().toISOString(),
+                        gameDay: gameState.currentDay,
+                        seatNumber: gameState.currentQuestion.deskIndex + 1,
+                        question: gameState.currentQuestion.question,
+                        selectedAnswer: gameState.currentQuestion.answers[answerIndex],
+                        correctAnswer: gameState.currentQuestion.answers[gameState.currentQuestion.correct],
+                        isCorrect: true,
+                        theme: gameState.currentQuestion.theme,
+                        bookingTime: new Date().toLocaleString(),
+                        playerStats: {
+                            totalDesksBooked: player.desksBooked,
+                            totalQuestionsAnswered: player.questionsAnswered,
+                            totalCorrectAnswers: player.correctAnswers,
+                            winRate: Math.round((player.correctAnswers / player.questionsAnswered) * 100)
+                        }
+                    };
+                    
+                    gameState.bookingHistory.push(bookingDetails);
+                    desk.bookingId = bookingDetails.id;
+                    
+                    // Save to localStorage
+                    saveGameData();
+                    
                     // Play success sound
                     playSound('success');
                     
@@ -733,6 +777,25 @@
                     
                     alert(`🎉 Congratulations! You've successfully booked Desk ${gameState.currentQuestion.deskIndex + 1}!`);
                 } else {
+                    // Store failed attempt
+                    const failedAttempt = {
+                        id: `attempt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        username: player.name,
+                        avatar: player.avatar,
+                        date: new Date().toISOString(),
+                        gameDay: gameState.currentDay,
+                        attemptedSeat: gameState.currentQuestion.deskIndex + 1,
+                        question: gameState.currentQuestion.question,
+                        selectedAnswer: gameState.currentQuestion.answers[answerIndex],
+                        correctAnswer: gameState.currentQuestion.answers[gameState.currentQuestion.correct],
+                        isCorrect: false,
+                        theme: gameState.currentQuestion.theme,
+                        attemptTime: new Date().toLocaleString()
+                    };
+                    
+                    gameState.bookingHistory.push(failedAttempt);
+                    saveGameData();
+                    
                     // Play fail sound
                     playSound('fail');
                     alert(`❌ Sorry, that's incorrect. The correct answer was: ${gameState.currentQuestion.answers[gameState.currentQuestion.correct]}`);
@@ -938,14 +1001,189 @@
             }
         }
 
+        // Save Game Data to localStorage
+        function saveGameData() {
+            const gameData = {
+                gameState: gameState,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('deskDerbyData', JSON.stringify(gameData));
+        }
+
+        // Load Game Data from localStorage
+        function loadGameData() {
+            const savedData = localStorage.getItem('deskDerbyData');
+            if (savedData) {
+                try {
+                    const gameData = JSON.parse(savedData);
+                    // Merge saved data with current game state
+                    if (gameData.gameState && gameData.gameState.bookingHistory) {
+                        gameState.bookingHistory = gameData.gameState.bookingHistory;
+                    }
+                } catch (error) {
+                    console.log('Error loading saved data:', error);
+                }
+            }
+        }
+
+        // Download Booking Data as JSON
+        function downloadBookingData() {
+            const dataToDownload = {
+                gameInfo: {
+                    currentDay: gameState.currentDay,
+                    totalPlayers: gameState.players.length,
+                    exportDate: new Date().toISOString()
+                },
+                players: gameState.players.map(player => ({
+                    name: player.name,
+                    avatar: player.avatar,
+                    desksBooked: player.desksBooked,
+                    questionsAnswered: player.questionsAnswered,
+                    correctAnswers: player.correctAnswers,
+                    winRate: player.questionsAnswered > 0 ? Math.round((player.correctAnswers / player.questionsAnswered) * 100) : 0,
+                    title: player.title
+                })),
+                currentDesks: gameState.desks.map((desk, index) => ({
+                    deskNumber: index + 1,
+                    available: desk.available,
+                    bookedBy: desk.bookedBy,
+                    bookedDay: desk.bookedDay,
+                    bookingId: desk.bookingId
+                })),
+                bookingHistory: gameState.bookingHistory,
+                weeklyChampions: gameState.weeklyChampions
+            };
+            
+            const dataStr = JSON.stringify(dataToDownload, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `desk-derby-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            alert('📥 Booking data downloaded successfully!');
+        }
+
+        // Open Release Modal
+        function openReleaseModal() {
+            const bookedDesks = gameState.desks.filter(desk => !desk.available);
+            
+            if (bookedDesks.length === 0) {
+                alert('No desks are currently booked!');
+                return;
+            }
+            
+            const releaseSelection = document.getElementById('releaseSelection');
+            releaseSelection.innerHTML = '';
+            
+            bookedDesks.forEach((desk, originalIndex) => {
+                const actualIndex = gameState.desks.findIndex(d => d === desk);
+                const option = document.createElement('div');
+                option.className = 'avatar-option';
+                option.onclick = () => selectDeskForRelease(actualIndex, option);
+                
+                const bookingInfo = gameState.bookingHistory.find(booking => 
+                    booking.id === desk.bookingId && booking.isCorrect
+                );
+                
+                option.innerHTML = `
+                    <div><strong>Desk ${actualIndex + 1}</strong></div>
+                    <div>Booked by: ${desk.bookedBy}</div>
+                    <div>Day: ${desk.bookedDay}</div>
+                    ${bookingInfo ? `<div>Time: ${bookingInfo.bookingTime}</div>` : ''}
+                `;
+                
+                releaseSelection.appendChild(option);
+            });
+            
+            document.getElementById('releaseModal').style.display = 'block';
+        }
+
+        // Close Release Modal
+        function closeReleaseModal() {
+            document.getElementById('releaseModal').style.display = 'none';
+            selectedDeskForRelease = null;
+        }
+
+        let selectedDeskForRelease = null;
+
+        // Select Desk for Release
+        function selectDeskForRelease(deskIndex, element) {
+            document.querySelectorAll('#releaseSelection .avatar-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedDeskForRelease = deskIndex;
+        }
+
+        // Confirm Release
+        function confirmRelease() {
+            if (selectedDeskForRelease === null) {
+                alert('Please select a desk to release!');
+                return;
+            }
+            
+            const desk = gameState.desks[selectedDeskForRelease];
+            const player = gameState.players.find(p => p.name === desk.bookedBy);
+            
+            if (confirm(`Are you sure you want to release Desk ${selectedDeskForRelease + 1} booked by ${desk.bookedBy}?`)) {
+                // Update booking history with release information
+                const releaseRecord = {
+                    id: `release_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    originalBookingId: desk.bookingId,
+                    username: desk.bookedBy,
+                    date: new Date().toISOString(),
+                    gameDay: gameState.currentDay,
+                    seatNumber: selectedDeskForRelease + 1,
+                    action: 'RELEASE',
+                    releaseTime: new Date().toLocaleString(),
+                    releasedBy: 'Admin' // You could track who released it
+                };
+                
+                gameState.bookingHistory.push(releaseRecord);
+                
+                // Update player stats
+                if (player) {
+                    player.desksBooked = Math.max(0, player.desksBooked - 1);
+                    player.weeklyBookings[gameState.currentDay - 1] = false;
+                    updatePlayerTitle(player);
+                }
+                
+                // Reset desk
+                desk.available = true;
+                desk.bookedBy = null;
+                desk.bookedDay = null;
+                desk.bookingId = null;
+                
+                saveGameData();
+                updateDisplay();
+                closeReleaseModal();
+                
+                alert(`✅ Desk ${selectedDeskForRelease + 1} has been released and is now available for booking!`);
+            }
+        }
+
+        // Enhanced Initialize Game
+        function initGame() {
+            loadGameData(); // Load saved data first
+            gameState.questions = lloydQuestions;
+            generatePlayers();
+            generateDesks();
+            updateDisplay();
+        }
+
         // Initialize game when page loads
         window.onload = initGame;
 
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('avatarModal');
-            if (event.target === modal) {
+            const avatarModal = document.getElementById('avatarModal');
+            const releaseModal = document.getElementById('releaseModal');
+            
+            if (event.target === avatarModal) {
                 closeAvatarModal();
+            }
+            if (event.target === releaseModal) {
+                closeReleaseModal();
             }
         }
     </script>
