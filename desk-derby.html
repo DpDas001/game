@@ -370,6 +370,9 @@
             <button class="btn" onclick="startNewDay()">🌅 Start New Day</button>
             <button class="btn" onclick="showLeaderboard()">🏆 View Leaderboard</button>
             <button class="btn" onclick="openAvatarModal()">🎭 Choose Avatar</button>
+            <button class="btn" onclick="openReleaseModal()">🔓 Release Desk</button>
+            <button class="btn" onclick="loadJSONFile()">📂 Load JSON</button>
+            <button class="btn" onclick="downloadBookingData()">💾 Save JSON</button>
             <button class="btn" onclick="resetGame()">🔄 Reset Game</button>
         </div>
 
@@ -435,6 +438,22 @@
         </div>
     </div>
 
+    <!-- Release Desk Modal -->
+    <div id="releaseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeReleaseModal()">&times;</span>
+            <h2>🔓 Release a Desk</h2>
+            <p>Select a booked desk to release:</p>
+            <div class="avatar-selection" id="releaseSelection">
+                <!-- Release options will be generated here -->
+            </div>
+            <button class="btn" onclick="confirmRelease()">Release Selected Desk</button>
+        </div>
+    </div>
+
+    <!-- Hidden file input for JSON loading -->
+    <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="handleJSONFileLoad(event)">
+
     <!-- Sound Effects -->
     <div class="sound-effects">
         <audio id="successSound" preload="auto">
@@ -446,7 +465,7 @@
     </div>
 
     <script>
-        // Game State
+        // Game State - Now loaded from JSON file
         let gameState = {
             currentDay: 1,
             currentPlayer: null,
@@ -455,6 +474,13 @@
             questions: [],
             currentQuestion: null,
             weeklyChampions: [],
+            bookingHistory: [],
+            gameSettings: {
+                totalDesks: 5,
+                daysPerWeek: 7,
+                questionsPerAttempt: 1,
+                maxBookingsPerPlayer: 7
+            },
             avatars: [
                 "🐴 Sir Gallops-a-Lot",
                 "🦄 Desk-a-saurus Rex", 
@@ -468,6 +494,9 @@
                 "🏆 Victory Val"
             ]
         };
+
+        // JSON file path (relative to HTML file)
+        const JSON_FILE_PATH = './desk-derby-data.json';
 
         // Lloyds Values Questions
         const lloydQuestions = [
@@ -541,12 +570,62 @@
             updateDisplay();
         }
 
-        // Generate Players
-        function generatePlayers() {
+        // Load JSON Data from file (fallback to default if file not found)
+        async function loadJSONData() {
+            try {
+                const response = await fetch(JSON_FILE_PATH);
+                if (response.ok) {
+                    const jsonData = await response.json();
+                    
+                    // Store the loaded structure for future use
+                    localStorage.setItem('deskDerbyStructure', JSON.stringify(jsonData));
+                    
+                    // Check if it's the new date-based structure
+                    if (jsonData.dailyData && jsonData.dateIndex) {
+                        // New structure - load latest date data
+                        const latestDate = jsonData.dateIndex.latestDate;
+                        const availableDates = jsonData.dateIndex.availableDates || [];
+                        
+                        if (latestDate && jsonData.dailyData[latestDate]) {
+                            const latestDayData = jsonData.dailyData[latestDate];
+                            gameState.currentDay = latestDayData.day || 1;
+                            gameState.players = latestDayData.players || [];
+                            gameState.desks = latestDayData.desks || [];
+                        }
+                        
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        console.log(`✅ Date-based JSON loaded - Latest: ${latestDate}, Total dates: ${availableDates.length}`);
+                    } else {
+                        // Legacy structure - convert to new format
+                        gameState.currentDay = jsonData.gameInfo?.currentDay || jsonData.currentDay || 1;
+                        gameState.players = jsonData.players || [];
+                        gameState.desks = jsonData.desks || [];
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        console.log('✅ Legacy JSON data loaded (will be converted on save)');
+                    }
+                    
+                    return true;
+                } else {
+                    throw new Error('JSON file not found');
+                }
+            } catch (error) {
+                console.log('⚠️ Could not load JSON file, using default data:', error.message);
+                generateDefaultData();
+                return false;
+            }
+        }
+
+        // Generate default data when JSON file is not available
+        function generateDefaultData() {
             const playerNames = [
-                "Alex Thompson", "Sarah Johnson", "Mike Chen", "Emma Wilson", 
-                "David Brown", "Lisa Garcia", "Tom Anderson", "Rachel Lee",
-                "James Taylor", "Amy Davis"
+                "Andy", "Piyush", "Tahira", "David", 
+                "Hamza", "Prasad", "Durga"
             ];
             
             gameState.players = playerNames.map((name, index) => ({
@@ -560,15 +639,13 @@
                 currentStreak: 0,
                 title: "New Rider"
             }));
-        }
-
-        // Generate Desks
-        function generateDesks() {
+            
             gameState.desks = Array(5).fill(null).map((_, index) => ({
                 id: index,
                 available: true,
                 bookedBy: null,
-                bookedDay: null
+                bookedDay: null,
+                bookingId: null
             }));
         }
 
@@ -725,6 +802,34 @@
                     desk.bookedBy = player.name;
                     desk.bookedDay = gameState.currentDay;
                     
+                    // Store booking details in JSON format
+                    const bookingDetails = {
+                        id: `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        username: player.name,
+                        avatar: player.avatar,
+                        date: new Date().toISOString(),
+                        gameDay: gameState.currentDay,
+                        seatNumber: gameState.currentQuestion.deskIndex + 1,
+                        question: gameState.currentQuestion.question,
+                        selectedAnswer: gameState.currentQuestion.answers[answerIndex],
+                        correctAnswer: gameState.currentQuestion.answers[gameState.currentQuestion.correct],
+                        isCorrect: true,
+                        theme: gameState.currentQuestion.theme,
+                        bookingTime: new Date().toLocaleString(),
+                        playerStats: {
+                            totalDesksBooked: player.desksBooked,
+                            totalQuestionsAnswered: player.questionsAnswered,
+                            totalCorrectAnswers: player.correctAnswers,
+                            winRate: Math.round((player.correctAnswers / player.questionsAnswered) * 100)
+                        }
+                    };
+                    
+                    gameState.bookingHistory.push(bookingDetails);
+                    desk.bookingId = bookingDetails.id;
+                    
+                    // Auto-save to localStorage as backup
+                    autoSaveToLocalStorage();
+                    
                     // Play success sound
                     playSound('success');
                     
@@ -733,6 +838,25 @@
                     
                     alert(`🎉 Congratulations! You've successfully booked Desk ${gameState.currentQuestion.deskIndex + 1}!`);
                 } else {
+                    // Store failed attempt
+                    const failedAttempt = {
+                        id: `attempt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        username: player.name,
+                        avatar: player.avatar,
+                        date: new Date().toISOString(),
+                        gameDay: gameState.currentDay,
+                        attemptedSeat: gameState.currentQuestion.deskIndex + 1,
+                        question: gameState.currentQuestion.question,
+                        selectedAnswer: gameState.currentQuestion.answers[answerIndex],
+                        correctAnswer: gameState.currentQuestion.answers[gameState.currentQuestion.correct],
+                        isCorrect: false,
+                        theme: gameState.currentQuestion.theme,
+                        attemptTime: new Date().toLocaleString()
+                    };
+                    
+                    gameState.bookingHistory.push(failedAttempt);
+                    autoSaveToLocalStorage();
+                    
                     // Play fail sound
                     playSound('fail');
                     alert(`❌ Sorry, that's incorrect. The correct answer was: ${gameState.currentQuestion.answers[gameState.currentQuestion.correct]}`);
@@ -938,14 +1062,464 @@
             }
         }
 
+        // Save Game Data to JSON format (for download)
+        function saveGameDataToJSON() {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const currentDateTime = new Date().toISOString();
+            
+            // Load existing structure from localStorage or create new
+            const existingStructure = loadExistingJSONStructure();
+            
+            // Update daily data for current date
+            if (!existingStructure.dailyData) {
+                existingStructure.dailyData = {};
+            }
+            
+            existingStructure.dailyData[currentDate] = {
+                day: gameState.currentDay,
+                players: gameState.players,
+                desks: gameState.desks,
+                timestamp: currentDateTime
+            };
+            
+            // Update date index
+            if (!existingStructure.dateIndex) {
+                existingStructure.dateIndex = {
+                    availableDates: []
+                };
+            }
+            
+            existingStructure.dateIndex.latestDate = currentDate;
+            if (!existingStructure.dateIndex.availableDates.includes(currentDate)) {
+                existingStructure.dateIndex.availableDates.push(currentDate);
+                existingStructure.dateIndex.availableDates.sort();
+            }
+            
+            // Update game info
+            existingStructure.gameInfo = {
+                currentDay: gameState.currentDay,
+                totalPlayers: gameState.players.length,
+                gameStartDate: existingStructure.gameInfo?.gameStartDate || currentDate,
+                lastUpdated: currentDateTime,
+                dataVersion: "2.0",
+                totalDaysTracked: existingStructure.dateIndex.availableDates.length
+            };
+            
+            // Update other data
+            existingStructure.bookingHistory = gameState.bookingHistory;
+            existingStructure.weeklyChampions = gameState.weeklyChampions;
+            existingStructure.gameSettings = gameState.gameSettings;
+            
+            return JSON.stringify(existingStructure, null, 2);
+        }
+        
+        // Load existing JSON structure from localStorage or create new one
+        function loadExistingJSONStructure() {
+            try {
+                const existing = localStorage.getItem('deskDerbyStructure');
+                if (existing) {
+                    const parsed = JSON.parse(existing);
+                    // Ensure it has the required structure
+                    if (parsed.dailyData || parsed.dateIndex) {
+                        return parsed;
+                    }
+                }
+            } catch (error) {
+                console.log('Error loading existing structure:', error);
+            }
+            
+            // Return default structure
+            return {
+                gameInfo: {
+                    dataVersion: "2.0",
+                    totalDaysTracked: 0
+                },
+                dailyData: {},
+                bookingHistory: gameState.bookingHistory || [],
+                weeklyChampions: gameState.weeklyChampions || [],
+                gameSettings: gameState.gameSettings,
+                dateIndex: {
+                    availableDates: [],
+                    latestDate: null
+                }
+            };
+        }
+
+        // Load JSON File via file input
+        function loadJSONFile() {
+            document.getElementById('jsonFileInput').click();
+        }
+
+        // Handle JSON file loading
+        function handleJSONFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const jsonData = JSON.parse(e.target.result);
+                    
+                    // Store the loaded structure
+                    localStorage.setItem('deskDerbyStructure', JSON.stringify(jsonData));
+                    
+                    // Check if it's the new date-based structure
+                    if (jsonData.dailyData && jsonData.dateIndex) {
+                        // New structure - show date selection or load latest
+                        const availableDates = jsonData.dateIndex.availableDates || [];
+                        const latestDate = jsonData.dateIndex.latestDate;
+                        
+                        if (availableDates.length > 1) {
+                            // Multiple dates available - ask user which to load
+                            const dateChoice = confirm(`Multiple dates found (${availableDates.length} days).\n\nClick OK to load latest date (${latestDate})\nClick Cancel to see all available dates`);
+                            
+                            if (!dateChoice) {
+                                alert(`Available dates:\n${availableDates.join('\n')}\n\nLoading latest: ${latestDate}`);
+                            }
+                        }
+                        
+                        // Load the latest date data
+                        if (latestDate && jsonData.dailyData[latestDate]) {
+                            const latestDayData = jsonData.dailyData[latestDate];
+                            gameState.currentDay = latestDayData.day || 1;
+                            gameState.players = latestDayData.players || [];
+                            gameState.desks = latestDayData.desks || [];
+                            gameState.bookingHistory = jsonData.bookingHistory || [];
+                            gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                            gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                            
+                            alert(`✅ Date-based JSON loaded!\n📅 Latest Date: ${latestDate}\n📊 Total Days: ${availableDates.length}`);
+                        } else {
+                            throw new Error('No valid date data found');
+                        }
+                    } else if (jsonData.players && jsonData.desks) {
+                        // Legacy structure
+                        gameState.currentDay = jsonData.gameInfo?.currentDay || jsonData.currentDay || 1;
+                        gameState.players = jsonData.players;
+                        gameState.desks = jsonData.desks;
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        alert('✅ Legacy JSON loaded (will be converted to date-based format on save)');
+                    } else {
+                        throw new Error('Invalid JSON structure - missing required data');
+                    }
+                    
+                    // Reset current player if not found in loaded data
+                    if (gameState.currentPlayer) {
+                        const playerExists = gameState.players.find(p => p.id === gameState.currentPlayer.id);
+                        if (!playerExists) {
+                            gameState.currentPlayer = null;
+                        }
+                    }
+                    
+                    updateDisplay();
+                } catch (error) {
+                    alert('❌ Error loading JSON file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Download Booking Data as JSON (Save current state)
+        function downloadBookingData() {
+            const jsonData = saveGameDataToJSON();
+            const dataBlob = new Blob([jsonData], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `desk-derby-data.json`;
+            link.click();
+            
+            const currentDate = new Date().toISOString().split('T')[0];
+            const existingStructure = loadExistingJSONStructure();
+            const totalDays = existingStructure.dateIndex?.availableDates?.length || 1;
+            
+            alert(`💾 Game data saved successfully!\n📅 Current Date: ${currentDate}\n📊 Total Days Tracked: ${totalDays}\n\nAll historical data preserved in single file.`);
+        }
+
+        // Save daily data to existing JSON structure
+        function saveDailyDataToJSON() {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const currentDateTime = new Date().toISOString();
+            
+            // Load existing data first
+            const existingData = loadExistingJSONStructure();
+            
+            // Update daily data for current date
+            if (!existingData.dailyData) {
+                existingData.dailyData = {};
+            }
+            
+            existingData.dailyData[currentDate] = {
+                day: gameState.currentDay,
+                players: gameState.players,
+                desks: gameState.desks,
+                timestamp: currentDateTime
+            };
+            
+            // Update date index
+            if (!existingData.dateIndex) {
+                existingData.dateIndex = {
+                    availableDates: []
+                };
+            }
+            
+            existingData.dateIndex.latestDate = currentDate;
+            if (!existingData.dateIndex.availableDates.includes(currentDate)) {
+                existingData.dateIndex.availableDates.push(currentDate);
+                existingData.dateIndex.availableDates.sort();
+            }
+            
+            // Update other data
+            existingData.gameInfo = {
+                currentDay: gameState.currentDay,
+                totalPlayers: gameState.players.length,
+                gameStartDate: existingData.gameInfo?.gameStartDate || currentDate,
+                lastUpdated: currentDateTime,
+                dataVersion: "1.0"
+            };
+            
+            existingData.bookingHistory = gameState.bookingHistory;
+            existingData.weeklyChampions = gameState.weeklyChampions;
+            existingData.gameSettings = gameState.gameSettings;
+            
+            return existingData;
+        }
+        
+        // Load existing JSON structure from localStorage or create new one
+        function loadExistingJSONStructure() {
+            try {
+                const existing = localStorage.getItem('deskDerbyStructure');
+                if (existing) {
+                    return JSON.parse(existing);
+                }
+            } catch (error) {
+                console.log('No existing structure found, creating new one');
+            }
+            
+            // Return default structure
+            return {
+                gameInfo: {},
+                dailyData: {},
+                bookingHistory: [],
+                weeklyChampions: [],
+                gameSettings: gameState.gameSettings,
+                dateIndex: {
+                    availableDates: []
+                }
+            };
+        }
+
+        // Auto-save function to localStorage as backup
+        function autoSaveToLocalStorage() {
+            try {
+                // Save traditional backup
+                const backupData = {
+                    gameState: gameState,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('deskDerbyBackup', JSON.stringify(backupData));
+                
+                // Save date-based structure
+                const currentDate = new Date().toISOString().split('T')[0];
+                const currentDateTime = new Date().toISOString();
+                
+                const existingStructure = loadExistingJSONStructure();
+                
+                // Update daily data
+                if (!existingStructure.dailyData) {
+                    existingStructure.dailyData = {};
+                }
+                
+                existingStructure.dailyData[currentDate] = {
+                    day: gameState.currentDay,
+                    players: gameState.players,
+                    desks: gameState.desks,
+                    timestamp: currentDateTime
+                };
+                
+                // Update date index
+                if (!existingStructure.dateIndex) {
+                    existingStructure.dateIndex = {
+                        availableDates: []
+                    };
+                }
+                
+                existingStructure.dateIndex.latestDate = currentDate;
+                if (!existingStructure.dateIndex.availableDates.includes(currentDate)) {
+                    existingStructure.dateIndex.availableDates.push(currentDate);
+                    existingStructure.dateIndex.availableDates.sort();
+                }
+                
+                // Update other data
+                existingStructure.bookingHistory = gameState.bookingHistory;
+                existingStructure.weeklyChampions = gameState.weeklyChampions;
+                
+                localStorage.setItem('deskDerbyStructure', JSON.stringify(existingStructure));
+                
+            } catch (error) {
+                console.log('Auto-save to localStorage failed:', error);
+            }
+        }
+
+        // Load backup from localStorage if available
+        function loadBackupFromLocalStorage() {
+            try {
+                const backup = localStorage.getItem('deskDerbyBackup');
+                if (backup) {
+                    const backupData = JSON.parse(backup);
+                    if (backupData.gameState && backupData.gameState.bookingHistory) {
+                        // Only restore booking history if main data is empty
+                        if (gameState.bookingHistory.length === 0) {
+                            gameState.bookingHistory = backupData.gameState.bookingHistory;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Error loading backup:', error);
+            }
+        }
+
+        // Open Release Modal
+        function openReleaseModal() {
+            const bookedDesks = gameState.desks.filter(desk => !desk.available);
+            
+            if (bookedDesks.length === 0) {
+                alert('No desks are currently booked!');
+                return;
+            }
+            
+            const releaseSelection = document.getElementById('releaseSelection');
+            releaseSelection.innerHTML = '';
+            
+            bookedDesks.forEach((desk, originalIndex) => {
+                const actualIndex = gameState.desks.findIndex(d => d === desk);
+                const option = document.createElement('div');
+                option.className = 'avatar-option';
+                option.onclick = () => selectDeskForRelease(actualIndex, option);
+                
+                const bookingInfo = gameState.bookingHistory.find(booking => 
+                    booking.id === desk.bookingId && booking.isCorrect
+                );
+                
+                option.innerHTML = `
+                    <div><strong>Desk ${actualIndex + 1}</strong></div>
+                    <div>Booked by: ${desk.bookedBy}</div>
+                    <div>Day: ${desk.bookedDay}</div>
+                    ${bookingInfo ? `<div>Time: ${bookingInfo.bookingTime}</div>` : ''}
+                `;
+                
+                releaseSelection.appendChild(option);
+            });
+            
+            document.getElementById('releaseModal').style.display = 'block';
+        }
+
+        // Close Release Modal
+        function closeReleaseModal() {
+            document.getElementById('releaseModal').style.display = 'none';
+            selectedDeskForRelease = null;
+        }
+
+        let selectedDeskForRelease = null;
+
+        // Select Desk for Release
+        function selectDeskForRelease(deskIndex, element) {
+            document.querySelectorAll('#releaseSelection .avatar-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedDeskForRelease = deskIndex;
+        }
+
+        // Confirm Release
+        function confirmRelease() {
+            if (selectedDeskForRelease === null) {
+                alert('Please select a desk to release!');
+                return;
+            }
+            
+            const desk = gameState.desks[selectedDeskForRelease];
+            const player = gameState.players.find(p => p.name === desk.bookedBy);
+            
+            if (confirm(`Are you sure you want to release Desk ${selectedDeskForRelease + 1} booked by ${desk.bookedBy}?`)) {
+                // Update booking history with release information
+                const releaseRecord = {
+                    id: `release_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    originalBookingId: desk.bookingId,
+                    username: desk.bookedBy,
+                    date: new Date().toISOString(),
+                    gameDay: gameState.currentDay,
+                    seatNumber: selectedDeskForRelease + 1,
+                    action: 'RELEASE',
+                    releaseTime: new Date().toLocaleString(),
+                    releasedBy: 'Admin' // You could track who released it
+                };
+                
+                gameState.bookingHistory.push(releaseRecord);
+                
+                // Update player stats
+                if (player) {
+                    player.desksBooked = Math.max(0, player.desksBooked - 1);
+                    player.weeklyBookings[gameState.currentDay - 1] = false;
+                    updatePlayerTitle(player);
+                }
+                
+                // Reset desk
+                desk.available = true;
+                desk.bookedBy = null;
+                desk.bookedDay = null;
+                desk.bookingId = null;
+                
+                autoSaveToLocalStorage();
+                updateDisplay();
+                closeReleaseModal();
+                
+                alert(`✅ Desk ${selectedDeskForRelease + 1} has been released and is now available for booking!`);
+            }
+        }
+
+        // Enhanced Initialize Game
+        async function initGame() {
+            gameState.questions = lloydQuestions;
+            
+            // Try to load JSON data first, fallback to default if not available
+            const jsonLoaded = await loadJSONData();
+            
+            // Load backup from localStorage if JSON loading failed
+            if (!jsonLoaded) {
+                loadBackupFromLocalStorage();
+            }
+            
+            updateDisplay();
+            
+            // Show loading status
+            if (jsonLoaded) {
+                console.log('📊 Game initialized with JSON data');
+            } else {
+                console.log('🛠️ Game initialized with default data');
+            }
+        }
+
         // Initialize game when page loads
-        window.onload = initGame;
+        window.onload = function() {
+            initGame().catch(error => {
+                console.error('Game initialization failed:', error);
+                generateDefaultData();
+                updateDisplay();
+            });
+        };
 
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('avatarModal');
-            if (event.target === modal) {
+            const avatarModal = document.getElementById('avatarModal');
+            const releaseModal = document.getElementById('releaseModal');
+            
+            if (event.target === avatarModal) {
                 closeAvatarModal();
+            }
+            if (event.target === releaseModal) {
+                closeReleaseModal();
             }
         }
     </script>
