@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐴 Desk Derby: The Lloyds Values Showdown! 🐴</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: bounce 2s infinite;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .game-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .desk-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .desk {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .desk.available {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .desk.booked {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.2);
+        }
+
+        .desk:hover {
+            transform: scale(1.05);
+        }
+
+        .desk-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .player-section {
+            margin-bottom: 30px;
+        }
+
+        .player-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .player-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .player-stats {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .quiz-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .question {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .answers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .answer-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 15px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.1em;
+        }
+
+        .answer-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: #ffd700;
+            transform: translateY(-2px);
+        }
+
+        .answer-btn.correct {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+        }
+
+        .answer-btn.incorrect {
+            background: rgba(244, 67, 54, 0.3);
+            border-color: #f44336;
+        }
+
+        .leaderboard {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .leaderboard h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            border: 2px solid #ffd700;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #ffd700;
+        }
+
+        .avatar-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .avatar-option {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-option:hover,
+        .avatar-option.selected {
+            border-color: #ffd700;
+            background: rgba(255,215,0,0.2);
+        }
+
+        .trophy-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .trophy {
+            font-size: 4em;
+            margin: 10px;
+            animation: rotate 2s infinite linear;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .sound-effects {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .desk-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .answers {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🐴 Desk Derby: The Lloyds Values Showdown! 🐴</h1>
+            <p>Race to book your desk by mastering Lloyds Banking Group values!</p>
+        </div>
+
+        <!-- Game Stats -->
+        <div class="game-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="dayCounter">1</div>
+                <div>Day of Week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="availableDesks">5</div>
+                <div>Desks Available</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalPlayers">10</div>
+                <div>Active Players</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="questionsAnswered">0</div>
+                <div>Questions Answered</div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <button class="btn" onclick="startNewDay()">🌅 Start New Day</button>
+            <button class="btn" onclick="showLeaderboard()">🏆 View Leaderboard</button>
+            <button class="btn" onclick="openAvatarModal()">🎭 Choose Avatar</button>
+            <button class="btn" onclick="resetGame()">🔄 Reset Game</button>
+        </div>
+
+        <!-- Desk Grid -->
+        <div class="desk-grid" id="deskGrid">
+            <!-- Desks will be generated here -->
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="quiz-section" id="quizSection" style="display: none;">
+            <h2>🧠 Lloyds Values Challenge</h2>
+            <div class="question" id="questionText"></div>
+            <div class="answers" id="answersContainer"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" onclick="closeQuiz()">Cancel Booking</button>
+            </div>
+        </div>
+
+        <!-- Current Player Section -->
+        <div class="player-section">
+            <h2>🎮 Current Player</h2>
+            <div class="player-card">
+                <div class="player-name" id="currentPlayerName">Select a player to start</div>
+                <div class="player-stats" id="currentPlayerStats">
+                    Desks Booked: 0/7 | Win Rate: 0% | Weekly Title: New Rider
+                </div>
+            </div>
+        </div>
+
+        <!-- Players Grid -->
+        <div class="player-section">
+            <h2>👥 All Players</h2>
+            <div class="player-grid" id="playersGrid">
+                <!-- Players will be generated here -->
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard" id="leaderboard">
+            <h2>🏆 Daily Leaderboard</h2>
+            <div id="leaderboardContent">
+                <!-- Leaderboard items will be generated here -->
+            </div>
+        </div>
+
+        <!-- Trophy Section -->
+        <div class="trophy-section">
+            <div class="trophy">🏆</div>
+            <h3>Weekly Champions Hall of Fame</h3>
+            <div id="weeklyChampions">No champions yet - be the first!</div>
+        </div>
+    </div>
+
+    <!-- Avatar Selection Modal -->
+    <div id="avatarModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAvatarModal()">&times;</span>
+            <h2>🎭 Choose Your Racing Persona</h2>
+            <div class="avatar-selection" id="avatarSelection">
+                <!-- Avatar options will be generated here -->
+            </div>
+            <button class="btn" onclick="saveAvatar()">Save Avatar</button>
+        </div>
+    </div>
+
+    <!-- Sound Effects -->
+    <div class="sound-effects">
+        <audio id="successSound" preload="auto">
+            <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEbBSuqnZCN1jC4hZSM1zE3hjOE0UZTTS5zp+jquVUUCkef4PKjXx0CIZzX8NGLPAoUXrTp66hVFApGn+DyvmEbBj2b1fDNiT4JNYO18Nud" type="audio/wav">
+        </audio>
+        <audio id="failSound" preload="auto">
+            <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm1" type="audio/wav">
+        </audio>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            currentDay: 1,
+            currentPlayer: null,
+            players: [],
+            desks: [],
+            questions: [],
+            currentQuestion: null,
+            weeklyChampions: [],
+            avatars: [
+                "🐴 Sir Gallops-a-Lot",
+                "🦄 Desk-a-saurus Rex", 
+                "🏇 The Booking Bandit",
+                "🎠 Captain Carousel",
+                "🐎 Mustang Mike",
+                "🦓 Zebra Zoe",
+                "🐴 Thunder Bolt",
+                "🏇 Lightning Lucy",
+                "🎭 Derby Dan",
+                "🏆 Victory Val"
+            ]
+        };
+
+        // Lloyds Values Questions
+        const lloydQuestions = [
+            {
+                question: "Which Lloyds value encourages us to challenge the status quo and seek better ways of working?",
+                answers: ["Integrity", "Innovation", "Collaboration", "Ownership"],
+                correct: 1,
+                theme: "Embracing Innovation"
+            },
+            {
+                question: "What does 'Putting Customers First' mean at Lloyds?",
+                answers: ["Making profits first", "Understanding customer needs", "Selling more products", "Reducing costs"],
+                correct: 1,
+                theme: "Putting Customers First"
+            },
+            {
+                question: "Which value emphasizes being honest and transparent in all our dealings?",
+                answers: ["Innovation", "Collaboration", "Integrity", "Ownership"],
+                correct: 2,
+                theme: "Acting with Integrity"
+            },
+            {
+                question: "Working Collaboratively means:",
+                answers: ["Working alone efficiently", "Sharing knowledge and supporting each other", "Competing with colleagues", "Following orders strictly"],
+                correct: 1,
+                theme: "Working Collaboratively"
+            },
+            {
+                question: "Taking Ownership involves:",
+                answers: ["Blaming others for mistakes", "Being accountable for our actions", "Avoiding difficult decisions", "Delegating all responsibilities"],
+                correct: 1,
+                theme: "Taking Ownership"
+            },
+            {
+                question: "How do we Put Customers First in our daily work?",
+                answers: ["By focusing on internal processes", "By listening to and understanding customer needs", "By prioritizing shareholder profits", "By minimizing customer interactions"],
+                correct: 1,
+                theme: "Putting Customers First"
+            },
+            {
+                question: "Innovation at Lloyds means:",
+                answers: ["Resisting change", "Embracing new ideas and technologies", "Maintaining traditional methods", "Avoiding risks"],
+                correct: 1,
+                theme: "Embracing Innovation"
+            },
+            {
+                question: "Which behavior demonstrates Acting with Integrity?",
+                answers: ["Cutting corners to meet deadlines", "Being honest even when it's difficult", "Hiding mistakes", "Taking credit for others' work"],
+                correct: 1,
+                theme: "Acting with Integrity"
+            },
+            {
+                question: "Collaboration is enhanced when we:",
+                answers: ["Work in isolation", "Share information and help colleagues", "Compete against team members", "Keep knowledge to ourselves"],
+                correct: 1,
+                theme: "Working Collaboratively"
+            },
+            {
+                question: "Taking Ownership means we should:",
+                answers: ["Blame external factors", "Take responsibility for our decisions", "Avoid challenging situations", "Wait for others to act"],
+                correct: 1,
+                theme: "Taking Ownership"
+            }
+        ];
+
+        // Initialize Game
+        function initGame() {
+            gameState.questions = lloydQuestions;
+            generatePlayers();
+            generateDesks();
+            updateDisplay();
+        }
+
+        // Generate Players
+        function generatePlayers() {
+            const playerNames = [
+                "Alex Thompson", "Sarah Johnson", "Mike Chen", "Emma Wilson", 
+                "David Brown", "Lisa Garcia", "Tom Anderson", "Rachel Lee",
+                "James Taylor", "Amy Davis"
+            ];
+            
+            gameState.players = playerNames.map((name, index) => ({
+                id: index,
+                name: name,
+                avatar: gameState.avatars[index],
+                desksBooked: 0,
+                questionsAnswered: 0,
+                correctAnswers: 0,
+                weeklyBookings: Array(7).fill(false),
+                currentStreak: 0,
+                title: "New Rider"
+            }));
+        }
+
+        // Generate Desks
+        function generateDesks() {
+            gameState.desks = Array(5).fill(null).map((_, index) => ({
+                id: index,
+                available: true,
+                bookedBy: null,
+                bookedDay: null
+            }));
+        }
+
+        // Update Display
+        function updateDisplay() {
+            updateStats();
+            updateDesks();
+            updatePlayers();
+            updateLeaderboard();
+        }
+
+        // Update Stats
+        function updateStats() {
+            document.getElementById('dayCounter').textContent = gameState.currentDay;
+            document.getElementById('availableDesks').textContent = 
+                gameState.desks.filter(desk => desk.available).length;
+            document.getElementById('questionsAnswered').textContent = 
+                gameState.players.reduce((sum, player) => sum + player.questionsAnswered, 0);
+        }
+
+        // Update Desks Display
+        function updateDesks() {
+            const deskGrid = document.getElementById('deskGrid');
+            deskGrid.innerHTML = '';
+            
+            gameState.desks.forEach((desk, index) => {
+                const deskElement = document.createElement('div');
+                deskElement.className = `desk ${desk.available ? 'available' : 'booked'}`;
+                deskElement.onclick = () => attemptBooking(index);
+                
+                deskElement.innerHTML = `
+                    <div class="desk-icon">${desk.available ? '🪑' : '🔒'}</div>
+                    <div>Desk ${index + 1}</div>
+                    <div>${desk.available ? 'Available' : `Booked by ${desk.bookedBy}`}</div>
+                `;
+                
+                deskGrid.appendChild(deskElement);
+            });
+        }
+
+        // Update Players Display
+        function updatePlayers() {
+            const playersGrid = document.getElementById('playersGrid');
+            playersGrid.innerHTML = '';
+            
+            gameState.players.forEach(player => {
+                const playerElement = document.createElement('div');
+                playerElement.className = 'player-card';
+                playerElement.onclick = () => selectPlayer(player);
+                
+                const winRate = player.questionsAnswered > 0 ? 
+                    Math.round((player.correctAnswers / player.questionsAnswered) * 100) : 0;
+                
+                playerElement.innerHTML = `
+                    <div class="player-name">${player.avatar}</div>
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-stats">
+                        Desks: ${player.desksBooked}/7 | Win Rate: ${winRate}% | ${player.title}
+                    </div>
+                `;
+                
+                if (gameState.currentPlayer && gameState.currentPlayer.id === player.id) {
+                    playerElement.style.border = '2px solid #ffd700';
+                }
+                
+                playersGrid.appendChild(playerElement);
+            });
+        }
+
+        // Select Player
+        function selectPlayer(player) {
+            gameState.currentPlayer = player;
+            document.getElementById('currentPlayerName').textContent = 
+                `${player.avatar} - ${player.name}`;
+            
+            const winRate = player.questionsAnswered > 0 ? 
+                Math.round((player.correctAnswers / player.questionsAnswered) * 100) : 0;
+            
+            document.getElementById('currentPlayerStats').textContent = 
+                `Desks Booked: ${player.desksBooked}/7 | Win Rate: ${winRate}% | Weekly Title: ${player.title}`;
+            
+            updatePlayers();
+        }
+
+        // Attempt Booking
+        function attemptBooking(deskIndex) {
+            if (!gameState.currentPlayer) {
+                alert('Please select a player first!');
+                return;
+            }
+            
+            if (!gameState.desks[deskIndex].available) {
+                alert('This desk is already booked!');
+                return;
+            }
+            
+            if (gameState.desks.filter(desk => desk.available).length === 0) {
+                alert('All desks are booked for today!');
+                return;
+            }
+            
+            // Show quiz
+            showQuiz(deskIndex);
+        }
+
+        // Show Quiz
+        function showQuiz(deskIndex) {
+            const randomQuestion = gameState.questions[Math.floor(Math.random() * gameState.questions.length)];
+            gameState.currentQuestion = { ...randomQuestion, deskIndex };
+            
+            document.getElementById('questionText').textContent = randomQuestion.question;
+            
+            const answersContainer = document.getElementById('answersContainer');
+            answersContainer.innerHTML = '';
+            
+            randomQuestion.answers.forEach((answer, index) => {
+                const answerBtn = document.createElement('button');
+                answerBtn.className = 'answer-btn';
+                answerBtn.textContent = `${String.fromCharCode(65 + index)}) ${answer}`;
+                answerBtn.onclick = () => answerQuestion(index);
+                answersContainer.appendChild(answerBtn);
+            });
+            
+            document.getElementById('quizSection').style.display = 'block';
+        }
+
+        // Answer Question
+        function answerQuestion(answerIndex) {
+            const isCorrect = answerIndex === gameState.currentQuestion.correct;
+            const player = gameState.currentPlayer;
+            
+            player.questionsAnswered++;
+            
+            // Update answer buttons
+            const answerBtns = document.querySelectorAll('.answer-btn');
+            answerBtns.forEach((btn, index) => {
+                btn.disabled = true;
+                if (index === gameState.currentQuestion.correct) {
+                    btn.classList.add('correct');
+                } else if (index === answerIndex && !isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            });
+            
+            setTimeout(() => {
+                if (isCorrect) {
+                    // Book the desk
+                    player.correctAnswers++;
+                    player.desksBooked++;
+                    player.weeklyBookings[gameState.currentDay - 1] = true;
+                    
+                    const desk = gameState.desks[gameState.currentQuestion.deskIndex];
+                    desk.available = false;
+                    desk.bookedBy = player.name;
+                    desk.bookedDay = gameState.currentDay;
+                    
+                    // Play success sound
+                    playSound('success');
+                    
+                    // Update player title
+                    updatePlayerTitle(player);
+                    
+                    alert(`🎉 Congratulations! You've successfully booked Desk ${gameState.currentQuestion.deskIndex + 1}!`);
+                } else {
+                    // Play fail sound
+                    playSound('fail');
+                    alert(`❌ Sorry, that's incorrect. The correct answer was: ${gameState.currentQuestion.answers[gameState.currentQuestion.correct]}`);
+                }
+                
+                closeQuiz();
+                updateDisplay();
+            }, 2000);
+        }
+
+        // Update Player Title
+        function updatePlayerTitle(player) {
+            const bookingRate = (player.desksBooked / 7) * 100;
+            
+            if (bookingRate >= 80) player.title = "🏆 Desk Dominator";
+            else if (bookingRate >= 60) player.title = "🥈 Steady Booker";
+            else if (bookingRate >= 40) player.title = "🥉 Reliable Rider";
+            else if (bookingRate >= 20) player.title = "🐌 Slow Starter";
+            else player.title = "😴 Desk Dreamer";
+        }
+
+        // Close Quiz
+        function closeQuiz() {
+            document.getElementById('quizSection').style.display = 'none';
+            gameState.currentQuestion = null;
+        }
+
+        // Start New Day
+        function startNewDay() {
+            if (gameState.currentDay >= 7) {
+                // End of week - show champions
+                endWeek();
+                return;
+            }
+            
+            gameState.currentDay++;
+            
+            // Reset desks
+            gameState.desks.forEach(desk => {
+                desk.available = true;
+                desk.bookedBy = null;
+                desk.bookedDay = null;
+            });
+            
+            updateDisplay();
+            alert(`🌅 Day ${gameState.currentDay} has begun! All desks are now available for booking.`);
+        }
+
+        // End Week
+        function endWeek() {
+            // Calculate final titles and champions
+            gameState.players.forEach(updatePlayerTitle);
+            
+            // Sort players by booking rate
+            const sortedPlayers = [...gameState.players].sort((a, b) => b.desksBooked - a.desksBooked);
+            
+            // Add champion to hall of fame
+            if (sortedPlayers[0].desksBooked > 0) {
+                gameState.weeklyChampions.push({
+                    name: sortedPlayers[0].name,
+                    avatar: sortedPlayers[0].avatar,
+                    desksBooked: sortedPlayers[0].desksBooked,
+                    week: Math.floor(gameState.weeklyChampions.length / 1) + 1
+                });
+            }
+            
+            // Show final results
+            let resultsMessage = "🏁 Week Complete! Final Results:\n\n";
+            sortedPlayers.forEach((player, index) => {
+                resultsMessage += `${index + 1}. ${player.name} - ${player.desksBooked}/7 desks (${player.title})\n`;
+            });
+            
+            alert(resultsMessage);
+            
+            // Reset for new week
+            if (confirm("Start a new week?")) {
+                resetWeek();
+            }
+        }
+
+        // Reset Week
+        function resetWeek() {
+            gameState.currentDay = 1;
+            gameState.players.forEach(player => {
+                player.desksBooked = 0;
+                player.weeklyBookings = Array(7).fill(false);
+                player.title = "New Rider";
+            });
+            generateDesks();
+            updateDisplay();
+        }
+
+        // Reset Game
+        function resetGame() {
+            if (confirm("Are you sure you want to reset the entire game?")) {
+                gameState.currentDay = 1;
+                gameState.currentPlayer = null;
+                gameState.weeklyChampions = [];
+                generatePlayers();
+                generateDesks();
+                updateDisplay();
+            }
+        }
+
+        // Update Leaderboard
+        function updateLeaderboard() {
+            const sortedPlayers = [...gameState.players].sort((a, b) => {
+                if (b.desksBooked !== a.desksBooked) return b.desksBooked - a.desksBooked;
+                return b.correctAnswers - a.correctAnswers;
+            });
+            
+            const leaderboardContent = document.getElementById('leaderboardContent');
+            leaderboardContent.innerHTML = '';
+            
+            sortedPlayers.forEach((player, index) => {
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                
+                const winRate = player.questionsAnswered > 0 ? 
+                    Math.round((player.correctAnswers / player.questionsAnswered) * 100) : 0;
+                
+                item.innerHTML = `
+                    <span class="rank">#${index + 1}</span>
+                    <span>${player.avatar} ${player.name}</span>
+                    <span>${player.desksBooked} desks | ${winRate}% win rate</span>
+                `;
+                
+                leaderboardContent.appendChild(item);
+            });
+            
+            // Update weekly champions
+            const championsDiv = document.getElementById('weeklyChampions');
+            if (gameState.weeklyChampions.length > 0) {
+                championsDiv.innerHTML = gameState.weeklyChampions.map(champion => 
+                    `Week ${champion.week}: ${champion.avatar} ${champion.name} (${champion.desksBooked} desks)`
+                ).join('<br>');
+            }
+        }
+
+        // Show/Hide Leaderboard
+        function showLeaderboard() {
+            const leaderboard = document.getElementById('leaderboard');
+            leaderboard.style.display = leaderboard.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Avatar Modal Functions
+        function openAvatarModal() {
+            if (!gameState.currentPlayer) {
+                alert('Please select a player first!');
+                return;
+            }
+            
+            const avatarSelection = document.getElementById('avatarSelection');
+            avatarSelection.innerHTML = '';
+            
+            gameState.avatars.forEach(avatar => {
+                const option = document.createElement('div');
+                option.className = 'avatar-option';
+                option.textContent = avatar;
+                option.onclick = () => selectAvatar(avatar, option);
+                
+                if (gameState.currentPlayer.avatar === avatar) {
+                    option.classList.add('selected');
+                }
+                
+                avatarSelection.appendChild(option);
+            });
+            
+            document.getElementById('avatarModal').style.display = 'block';
+        }
+
+        function closeAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'none';
+        }
+
+        let selectedAvatar = null;
+
+        function selectAvatar(avatar, element) {
+            document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedAvatar = avatar;
+        }
+
+        function saveAvatar() {
+            if (selectedAvatar && gameState.currentPlayer) {
+                gameState.currentPlayer.avatar = selectedAvatar;
+                updatePlayers();
+                selectPlayer(gameState.currentPlayer); // Refresh current player display
+                closeAvatarModal();
+                alert(`Avatar updated to ${selectedAvatar}!`);
+            }
+        }
+
+        // Play Sound Effects
+        function playSound(type) {
+            // Simple sound effect simulation
+            if (type === 'success') {
+                console.log('🎉 Success sound!');
+                // You can implement actual sound playback here
+            } else if (type === 'fail') {
+                console.log('❌ Fail sound!');
+                // You can implement actual sound playback here
+            }
+        }
+
+        // Initialize game when page loads
+        window.onload = initGame;
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('avatarModal');
+            if (event.target === modal) {
+                closeAvatarModal();
+            }
+        }
+    </script>
+</body>
+</html>
