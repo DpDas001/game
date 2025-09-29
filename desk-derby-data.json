@@ -1,0 +1,177 @@
+{
+  "gameInfo": {
+    "currentDay": 1,
+    "totalPlayers": 10,
+    "gameStartDate": "2025-09-29",
+    "lastUpdated": "2025-09-29T00:00:00.000Z",
+    "dataVersion": "2.0",
+    "totalDaysTracked": 1
+  },
+  "dailyData": {
+    "2025-09-29": {
+      "day": 1,
+      "players": [
+        {
+          "id": 0,
+          "name": "Alex Thompson",
+          "avatar": "🐴 Sir Gallops-a-Lot",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 1,
+          "name": "Sarah Johnson",
+          "avatar": "🦄 Desk-a-saurus Rex",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 2,
+          "name": "Mike Chen",
+          "avatar": "🏇 The Booking Bandit",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 3,
+          "name": "Emma Wilson",
+          "avatar": "🎠 Captain Carousel",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 4,
+          "name": "David Brown",
+          "avatar": "🐎 Mustang Mike",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 5,
+          "name": "Lisa Garcia",
+          "avatar": "🦓 Zebra Zoe",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 6,
+          "name": "Tom Anderson",
+          "avatar": "🐴 Thunder Bolt",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 7,
+          "name": "Rachel Lee",
+          "avatar": "🏇 Lightning Lucy",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 8,
+          "name": "James Taylor",
+          "avatar": "🎭 Derby Dan",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        },
+        {
+          "id": 9,
+          "name": "Amy Davis",
+          "avatar": "🏆 Victory Val",
+          "desksBooked": 0,
+          "questionsAnswered": 0,
+          "correctAnswers": 0,
+          "weeklyBookings": [false, false, false, false, false, false, false],
+          "currentStreak": 0,
+          "title": "New Rider"
+        }
+      ],
+      "desks": [
+        {
+          "id": 0,
+          "available": true,
+          "bookedBy": null,
+          "bookedDay": null,
+          "bookingId": null
+        },
+        {
+          "id": 1,
+          "available": true,
+          "bookedBy": null,
+          "bookedDay": null,
+          "bookingId": null
+        },
+        {
+          "id": 2,
+          "available": true,
+          "bookedBy": null,
+          "bookedDay": null,
+          "bookingId": null
+        },
+        {
+          "id": 3,
+          "available": true,
+          "bookedBy": null,
+          "bookedDay": null,
+          "bookingId": null
+        },
+        {
+          "id": 4,
+          "available": true,
+          "bookedBy": null,
+          "bookedDay": null,
+          "bookingId": null
+        }
+      ],
+      "timestamp": "2025-09-29T00:00:00.000Z"
+    }
+  },
+  "bookingHistory": [],
+  "weeklyChampions": [],
+  "gameSettings": {
+    "totalDesks": 5,
+    "daysPerWeek": 7,
+    "questionsPerAttempt": 1,
+    "maxBookingsPerPlayer": 7
+  },
+  "dateIndex": {
+    "latestDate": "2025-09-29",
+    "availableDates": ["2025-09-29"]
+  }
+}
