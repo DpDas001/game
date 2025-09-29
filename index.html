@@ -371,7 +371,8 @@
             <button class="btn" onclick="showLeaderboard()">🏆 View Leaderboard</button>
             <button class="btn" onclick="openAvatarModal()">🎭 Choose Avatar</button>
             <button class="btn" onclick="openReleaseModal()">🔓 Release Desk</button>
-            <button class="btn" onclick="downloadBookingData()">💾 Download Data</button>
+            <button class="btn" onclick="loadJSONFile()">📂 Load JSON</button>
+            <button class="btn" onclick="downloadBookingData()">💾 Save JSON</button>
             <button class="btn" onclick="resetGame()">🔄 Reset Game</button>
         </div>
 
@@ -450,6 +451,9 @@
         </div>
     </div>
 
+    <!-- Hidden file input for JSON loading -->
+    <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="handleJSONFileLoad(event)">
+
     <!-- Sound Effects -->
     <div class="sound-effects">
         <audio id="successSound" preload="auto">
@@ -461,7 +465,7 @@
     </div>
 
     <script>
-        // Game State
+        // Game State - Now loaded from JSON file
         let gameState = {
             currentDay: 1,
             currentPlayer: null,
@@ -471,6 +475,12 @@
             currentQuestion: null,
             weeklyChampions: [],
             bookingHistory: [],
+            gameSettings: {
+                totalDesks: 5,
+                daysPerWeek: 7,
+                questionsPerAttempt: 1,
+                maxBookingsPerPlayer: 7
+            },
             avatars: [
                 "🐴 Sir Gallops-a-Lot",
                 "🦄 Desk-a-saurus Rex", 
@@ -484,6 +494,9 @@
                 "🏆 Victory Val"
             ]
         };
+
+        // JSON file path (relative to HTML file)
+        const JSON_FILE_PATH = './desk-derby-data.json';
 
         // Lloyds Values Questions
         const lloydQuestions = [
@@ -557,8 +570,59 @@
             updateDisplay();
         }
 
-        // Generate Players
-        function generatePlayers() {
+        // Load JSON Data from file (fallback to default if file not found)
+        async function loadJSONData() {
+            try {
+                const response = await fetch(JSON_FILE_PATH);
+                if (response.ok) {
+                    const jsonData = await response.json();
+                    
+                    // Store the loaded structure for future use
+                    localStorage.setItem('deskDerbyStructure', JSON.stringify(jsonData));
+                    
+                    // Check if it's the new date-based structure
+                    if (jsonData.dailyData && jsonData.dateIndex) {
+                        // New structure - load latest date data
+                        const latestDate = jsonData.dateIndex.latestDate;
+                        const availableDates = jsonData.dateIndex.availableDates || [];
+                        
+                        if (latestDate && jsonData.dailyData[latestDate]) {
+                            const latestDayData = jsonData.dailyData[latestDate];
+                            gameState.currentDay = latestDayData.day || 1;
+                            gameState.players = latestDayData.players || [];
+                            gameState.desks = latestDayData.desks || [];
+                        }
+                        
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        console.log(`✅ Date-based JSON loaded - Latest: ${latestDate}, Total dates: ${availableDates.length}`);
+                    } else {
+                        // Legacy structure - convert to new format
+                        gameState.currentDay = jsonData.gameInfo?.currentDay || jsonData.currentDay || 1;
+                        gameState.players = jsonData.players || [];
+                        gameState.desks = jsonData.desks || [];
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        console.log('✅ Legacy JSON data loaded (will be converted on save)');
+                    }
+                    
+                    return true;
+                } else {
+                    throw new Error('JSON file not found');
+                }
+            } catch (error) {
+                console.log('⚠️ Could not load JSON file, using default data:', error.message);
+                generateDefaultData();
+                return false;
+            }
+        }
+
+        // Generate default data when JSON file is not available
+        function generateDefaultData() {
             const playerNames = [
                 "Alex Thompson", "Sarah Johnson", "Mike Chen", "Emma Wilson", 
                 "David Brown", "Lisa Garcia", "Tom Anderson", "Rachel Lee",
@@ -576,15 +640,13 @@
                 currentStreak: 0,
                 title: "New Rider"
             }));
-        }
-
-        // Generate Desks
-        function generateDesks() {
+            
             gameState.desks = Array(5).fill(null).map((_, index) => ({
                 id: index,
                 available: true,
                 bookedBy: null,
-                bookedDay: null
+                bookedDay: null,
+                bookingId: null
             }));
         }
 
@@ -766,8 +828,8 @@
                     gameState.bookingHistory.push(bookingDetails);
                     desk.bookingId = bookingDetails.id;
                     
-                    // Save to localStorage
-                    saveGameData();
+                    // Auto-save to localStorage as backup
+                    autoSaveToLocalStorage();
                     
                     // Play success sound
                     playSound('success');
@@ -794,7 +856,7 @@
                     };
                     
                     gameState.bookingHistory.push(failedAttempt);
-                    saveGameData();
+                    autoSaveToLocalStorage();
                     
                     // Play fail sound
                     playSound('fail');
@@ -1001,68 +1063,324 @@
             }
         }
 
-        // Save Game Data to localStorage
-        function saveGameData() {
-            const gameData = {
-                gameState: gameState,
-                timestamp: new Date().toISOString()
-            };
-            localStorage.setItem('deskDerbyData', JSON.stringify(gameData));
-        }
-
-        // Load Game Data from localStorage
-        function loadGameData() {
-            const savedData = localStorage.getItem('deskDerbyData');
-            if (savedData) {
-                try {
-                    const gameData = JSON.parse(savedData);
-                    // Merge saved data with current game state
-                    if (gameData.gameState && gameData.gameState.bookingHistory) {
-                        gameState.bookingHistory = gameData.gameState.bookingHistory;
-                    }
-                } catch (error) {
-                    console.log('Error loading saved data:', error);
-                }
+        // Save Game Data to JSON format (for download)
+        function saveGameDataToJSON() {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const currentDateTime = new Date().toISOString();
+            
+            // Load existing structure from localStorage or create new
+            const existingStructure = loadExistingJSONStructure();
+            
+            // Update daily data for current date
+            if (!existingStructure.dailyData) {
+                existingStructure.dailyData = {};
             }
-        }
-
-        // Download Booking Data as JSON
-        function downloadBookingData() {
-            const dataToDownload = {
-                gameInfo: {
-                    currentDay: gameState.currentDay,
-                    totalPlayers: gameState.players.length,
-                    exportDate: new Date().toISOString()
-                },
-                players: gameState.players.map(player => ({
-                    name: player.name,
-                    avatar: player.avatar,
-                    desksBooked: player.desksBooked,
-                    questionsAnswered: player.questionsAnswered,
-                    correctAnswers: player.correctAnswers,
-                    winRate: player.questionsAnswered > 0 ? Math.round((player.correctAnswers / player.questionsAnswered) * 100) : 0,
-                    title: player.title
-                })),
-                currentDesks: gameState.desks.map((desk, index) => ({
-                    deskNumber: index + 1,
-                    available: desk.available,
-                    bookedBy: desk.bookedBy,
-                    bookedDay: desk.bookedDay,
-                    bookingId: desk.bookingId
-                })),
-                bookingHistory: gameState.bookingHistory,
-                weeklyChampions: gameState.weeklyChampions
+            
+            existingStructure.dailyData[currentDate] = {
+                day: gameState.currentDay,
+                players: gameState.players,
+                desks: gameState.desks,
+                timestamp: currentDateTime
             };
             
-            const dataStr = JSON.stringify(dataToDownload, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            // Update date index
+            if (!existingStructure.dateIndex) {
+                existingStructure.dateIndex = {
+                    availableDates: []
+                };
+            }
+            
+            existingStructure.dateIndex.latestDate = currentDate;
+            if (!existingStructure.dateIndex.availableDates.includes(currentDate)) {
+                existingStructure.dateIndex.availableDates.push(currentDate);
+                existingStructure.dateIndex.availableDates.sort();
+            }
+            
+            // Update game info
+            existingStructure.gameInfo = {
+                currentDay: gameState.currentDay,
+                totalPlayers: gameState.players.length,
+                gameStartDate: existingStructure.gameInfo?.gameStartDate || currentDate,
+                lastUpdated: currentDateTime,
+                dataVersion: "2.0",
+                totalDaysTracked: existingStructure.dateIndex.availableDates.length
+            };
+            
+            // Update other data
+            existingStructure.bookingHistory = gameState.bookingHistory;
+            existingStructure.weeklyChampions = gameState.weeklyChampions;
+            existingStructure.gameSettings = gameState.gameSettings;
+            
+            return JSON.stringify(existingStructure, null, 2);
+        }
+        
+        // Load existing JSON structure from localStorage or create new one
+        function loadExistingJSONStructure() {
+            try {
+                const existing = localStorage.getItem('deskDerbyStructure');
+                if (existing) {
+                    const parsed = JSON.parse(existing);
+                    // Ensure it has the required structure
+                    if (parsed.dailyData || parsed.dateIndex) {
+                        return parsed;
+                    }
+                }
+            } catch (error) {
+                console.log('Error loading existing structure:', error);
+            }
+            
+            // Return default structure
+            return {
+                gameInfo: {
+                    dataVersion: "2.0",
+                    totalDaysTracked: 0
+                },
+                dailyData: {},
+                bookingHistory: gameState.bookingHistory || [],
+                weeklyChampions: gameState.weeklyChampions || [],
+                gameSettings: gameState.gameSettings,
+                dateIndex: {
+                    availableDates: [],
+                    latestDate: null
+                }
+            };
+        }
+
+        // Load JSON File via file input
+        function loadJSONFile() {
+            document.getElementById('jsonFileInput').click();
+        }
+
+        // Handle JSON file loading
+        function handleJSONFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const jsonData = JSON.parse(e.target.result);
+                    
+                    // Store the loaded structure
+                    localStorage.setItem('deskDerbyStructure', JSON.stringify(jsonData));
+                    
+                    // Check if it's the new date-based structure
+                    if (jsonData.dailyData && jsonData.dateIndex) {
+                        // New structure - show date selection or load latest
+                        const availableDates = jsonData.dateIndex.availableDates || [];
+                        const latestDate = jsonData.dateIndex.latestDate;
+                        
+                        if (availableDates.length > 1) {
+                            // Multiple dates available - ask user which to load
+                            const dateChoice = confirm(`Multiple dates found (${availableDates.length} days).\n\nClick OK to load latest date (${latestDate})\nClick Cancel to see all available dates`);
+                            
+                            if (!dateChoice) {
+                                alert(`Available dates:\n${availableDates.join('\n')}\n\nLoading latest: ${latestDate}`);
+                            }
+                        }
+                        
+                        // Load the latest date data
+                        if (latestDate && jsonData.dailyData[latestDate]) {
+                            const latestDayData = jsonData.dailyData[latestDate];
+                            gameState.currentDay = latestDayData.day || 1;
+                            gameState.players = latestDayData.players || [];
+                            gameState.desks = latestDayData.desks || [];
+                            gameState.bookingHistory = jsonData.bookingHistory || [];
+                            gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                            gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                            
+                            alert(`✅ Date-based JSON loaded!\n📅 Latest Date: ${latestDate}\n📊 Total Days: ${availableDates.length}`);
+                        } else {
+                            throw new Error('No valid date data found');
+                        }
+                    } else if (jsonData.players && jsonData.desks) {
+                        // Legacy structure
+                        gameState.currentDay = jsonData.gameInfo?.currentDay || jsonData.currentDay || 1;
+                        gameState.players = jsonData.players;
+                        gameState.desks = jsonData.desks;
+                        gameState.bookingHistory = jsonData.bookingHistory || [];
+                        gameState.weeklyChampions = jsonData.weeklyChampions || [];
+                        gameState.gameSettings = jsonData.gameSettings || gameState.gameSettings;
+                        
+                        alert('✅ Legacy JSON loaded (will be converted to date-based format on save)');
+                    } else {
+                        throw new Error('Invalid JSON structure - missing required data');
+                    }
+                    
+                    // Reset current player if not found in loaded data
+                    if (gameState.currentPlayer) {
+                        const playerExists = gameState.players.find(p => p.id === gameState.currentPlayer.id);
+                        if (!playerExists) {
+                            gameState.currentPlayer = null;
+                        }
+                    }
+                    
+                    updateDisplay();
+                } catch (error) {
+                    alert('❌ Error loading JSON file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Download Booking Data as JSON (Save current state)
+        function downloadBookingData() {
+            const jsonData = saveGameDataToJSON();
+            const dataBlob = new Blob([jsonData], {type: 'application/json'});
             
             const link = document.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
-            link.download = `desk-derby-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `desk-derby-data.json`;
             link.click();
             
-            alert('📥 Booking data downloaded successfully!');
+            const currentDate = new Date().toISOString().split('T')[0];
+            const existingStructure = loadExistingJSONStructure();
+            const totalDays = existingStructure.dateIndex?.availableDates?.length || 1;
+            
+            alert(`💾 Game data saved successfully!\n📅 Current Date: ${currentDate}\n📊 Total Days Tracked: ${totalDays}\n\nAll historical data preserved in single file.`);
+        }
+
+        // Save daily data to existing JSON structure
+        function saveDailyDataToJSON() {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const currentDateTime = new Date().toISOString();
+            
+            // Load existing data first
+            const existingData = loadExistingJSONStructure();
+            
+            // Update daily data for current date
+            if (!existingData.dailyData) {
+                existingData.dailyData = {};
+            }
+            
+            existingData.dailyData[currentDate] = {
+                day: gameState.currentDay,
+                players: gameState.players,
+                desks: gameState.desks,
+                timestamp: currentDateTime
+            };
+            
+            // Update date index
+            if (!existingData.dateIndex) {
+                existingData.dateIndex = {
+                    availableDates: []
+                };
+            }
+            
+            existingData.dateIndex.latestDate = currentDate;
+            if (!existingData.dateIndex.availableDates.includes(currentDate)) {
+                existingData.dateIndex.availableDates.push(currentDate);
+                existingData.dateIndex.availableDates.sort();
+            }
+            
+            // Update other data
+            existingData.gameInfo = {
+                currentDay: gameState.currentDay,
+                totalPlayers: gameState.players.length,
+                gameStartDate: existingData.gameInfo?.gameStartDate || currentDate,
+                lastUpdated: currentDateTime,
+                dataVersion: "1.0"
+            };
+            
+            existingData.bookingHistory = gameState.bookingHistory;
+            existingData.weeklyChampions = gameState.weeklyChampions;
+            existingData.gameSettings = gameState.gameSettings;
+            
+            return existingData;
+        }
+        
+        // Load existing JSON structure from localStorage or create new one
+        function loadExistingJSONStructure() {
+            try {
+                const existing = localStorage.getItem('deskDerbyStructure');
+                if (existing) {
+                    return JSON.parse(existing);
+                }
+            } catch (error) {
+                console.log('No existing structure found, creating new one');
+            }
+            
+            // Return default structure
+            return {
+                gameInfo: {},
+                dailyData: {},
+                bookingHistory: [],
+                weeklyChampions: [],
+                gameSettings: gameState.gameSettings,
+                dateIndex: {
+                    availableDates: []
+                }
+            };
+        }
+
+        // Auto-save function to localStorage as backup
+        function autoSaveToLocalStorage() {
+            try {
+                // Save traditional backup
+                const backupData = {
+                    gameState: gameState,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('deskDerbyBackup', JSON.stringify(backupData));
+                
+                // Save date-based structure
+                const currentDate = new Date().toISOString().split('T')[0];
+                const currentDateTime = new Date().toISOString();
+                
+                const existingStructure = loadExistingJSONStructure();
+                
+                // Update daily data
+                if (!existingStructure.dailyData) {
+                    existingStructure.dailyData = {};
+                }
+                
+                existingStructure.dailyData[currentDate] = {
+                    day: gameState.currentDay,
+                    players: gameState.players,
+                    desks: gameState.desks,
+                    timestamp: currentDateTime
+                };
+                
+                // Update date index
+                if (!existingStructure.dateIndex) {
+                    existingStructure.dateIndex = {
+                        availableDates: []
+                    };
+                }
+                
+                existingStructure.dateIndex.latestDate = currentDate;
+                if (!existingStructure.dateIndex.availableDates.includes(currentDate)) {
+                    existingStructure.dateIndex.availableDates.push(currentDate);
+                    existingStructure.dateIndex.availableDates.sort();
+                }
+                
+                // Update other data
+                existingStructure.bookingHistory = gameState.bookingHistory;
+                existingStructure.weeklyChampions = gameState.weeklyChampions;
+                
+                localStorage.setItem('deskDerbyStructure', JSON.stringify(existingStructure));
+                
+            } catch (error) {
+                console.log('Auto-save to localStorage failed:', error);
+            }
+        }
+
+        // Load backup from localStorage if available
+        function loadBackupFromLocalStorage() {
+            try {
+                const backup = localStorage.getItem('deskDerbyBackup');
+                if (backup) {
+                    const backupData = JSON.parse(backup);
+                    if (backupData.gameState && backupData.gameState.bookingHistory) {
+                        // Only restore booking history if main data is empty
+                        if (gameState.bookingHistory.length === 0) {
+                            gameState.bookingHistory = backupData.gameState.bookingHistory;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Error loading backup:', error);
+            }
         }
 
         // Open Release Modal
@@ -1154,7 +1472,7 @@
                 desk.bookedDay = null;
                 desk.bookingId = null;
                 
-                saveGameData();
+                autoSaveToLocalStorage();
                 updateDisplay();
                 closeReleaseModal();
                 
@@ -1163,16 +1481,35 @@
         }
 
         // Enhanced Initialize Game
-        function initGame() {
-            loadGameData(); // Load saved data first
+        async function initGame() {
             gameState.questions = lloydQuestions;
-            generatePlayers();
-            generateDesks();
+            
+            // Try to load JSON data first, fallback to default if not available
+            const jsonLoaded = await loadJSONData();
+            
+            // Load backup from localStorage if JSON loading failed
+            if (!jsonLoaded) {
+                loadBackupFromLocalStorage();
+            }
+            
             updateDisplay();
+            
+            // Show loading status
+            if (jsonLoaded) {
+                console.log('📊 Game initialized with JSON data');
+            } else {
+                console.log('🛠️ Game initialized with default data');
+            }
         }
 
         // Initialize game when page loads
-        window.onload = initGame;
+        window.onload = function() {
+            initGame().catch(error => {
+                console.error('Game initialization failed:', error);
+                generateDefaultData();
+                updateDisplay();
+            });
+        };
 
         // Close modal when clicking outside
         window.onclick = function(event) {
